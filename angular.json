@@ -89,6 +89,26 @@
                 "glob": "settings.plugin.json",
                 "input": "projects/aca-settings/assets",
                 "output": "./assets/plugins"
+              },
+              {
+                "glob": "arender.plugin.json",
+                "input": "node_modules/@arondor/arender-viewer/assets",
+                "output": "./assets/plugins"
+              },
+              {
+                "glob": "arender.plugin.json",
+                "input": "projects/arondor-arender-viewer/assets",
+                "output": "./assets/plugins"
+              },
+              {
+                "glob": "**/*",
+                "input": "node_modules/@arondor/arender-viewer/assets",
+                "output": "./assets/arender-viewer"
+              },
+              {
+                "glob": "**/*",
+                "input": "projects/arondor-arender-viewer/assets",
+                "output": "./assets/arender-viewer"
               }
             ],
             "styles": [
@@ -461,6 +481,41 @@
             "tsConfig": [
               "projects/aca-settings/tsconfig.lib.json",
               "projects/aca-settings/tsconfig.spec.json"
+            ],
+            "exclude": [
+              "**/node_modules/**"
+            ]
+          }
+        }
+      }
+    },
+	"arondor-arender-viewer": {
+      "root": "projects/arondor-arender-viewer",
+      "sourceRoot": "projects/arondor-arender-viewer/src",
+      "projectType": "library",
+      "prefix": "arender",
+      "architect": {
+        "build": {
+          "builder": "@angular-devkit/build-ng-packagr:build",
+          "options": {
+            "tsConfig": "projects/arondor-arender-viewer/tsconfig.lib.json",
+            "project": "projects/arondor-arender-viewer/ng-package.json"
+          }
+        },
+        "test": {
+          "builder": "@angular-devkit/build-angular:karma",
+          "options": {
+            "main": "projects/arondor-arender-viewer/src/test.ts",
+            "tsConfig": "projects/arondor-arender-viewer/tsconfig.spec.json",
+            "karmaConfig": "projects/arondor-arender-viewer/karma.conf.js"
+          }
+        },
+        "lint": {
+          "builder": "@angular-devkit/build-angular:tslint",
+          "options": {
+            "tsConfig": [
+              "projects/arondor-arender-viewer/tsconfig.lib.json",
+              "projects/arondor-arender-viewer/tsconfig.spec.json"
             ],
             "exclude": [
               "**/node_modules/**"

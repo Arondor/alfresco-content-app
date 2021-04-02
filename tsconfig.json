@@ -42,6 +42,12 @@
     },
     {
       "path": "./projects/aca-settings/tsconfig.spec.json"
+    },
+	{
+      "path": "./projects/arondor-arender-viewer/tsconfig.lib.json"
+    },
+	{
+      "path": "./projects/arondor-arender-viewer/tsconfig.spec.json"
     }
   ]
 }

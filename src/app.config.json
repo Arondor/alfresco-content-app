@@ -25,6 +25,14 @@
     "headerImagePath": "assets/images/mastHead-bg-shapesPattern.svg",
     "copyright": "APP.COPYRIGHT"
   },
+  "arender" :{
+    "host": "{protocol}//{hostname}:8080/ARenderHMI/",
+    "onPromise": true,
+    "documentbuilder":true,
+    "allowedGroups": [
+      "SiteManager"
+    ]
+  },
   "viewer.maxRetries": 1,
   "sharedLinkDateTimePickerType": "date",
   "headerColor": "#ffffff",

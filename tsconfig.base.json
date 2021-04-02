@@ -27,6 +27,8 @@
       "@alfresco/aca-testing-shared": ["projects/aca-testing-shared"],
       "@alfresco/aca-about": ["projects/aca-about/src/public-api.ts"],
       "@alfresco/aca-settings": ["projects/aca-settings/src/public-api.ts"],
+	  "@arondor/arender-viewer": ["dist/@arondor/arender-viewer"],
+      "@arondor/arender-viewer/*": ["dist/@arondor/arender-viewer/*"],
       "package.json": ["package.json"]
     }
   },
