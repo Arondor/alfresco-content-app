@@ -26,7 +26,7 @@
     "copyright": "APP.COPYRIGHT"
   },
   "arender" :{
-    "host": "{protocol}//{hostname}:8080/ARenderHMI/",
+    "host": "{protocol}//{hostname}:{port}/ARenderHMI/",
     "onPromise": true,
     "documentbuilder":true,
     "allowedGroups": [
