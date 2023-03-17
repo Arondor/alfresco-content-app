@@ -13,6 +13,7 @@
     "build.app": "node --max-old-space-size=8192 node_modules/@angular/cli/bin/ng build app --prod",
 	"build": "npm run validate-config && npm run build.extensions && npm run build.app -- --prod",
     "build.e2e": "npm run build.app -- --prod --configuration=e2e",
+    "build-libs": "ng build aca-shared && ng build adf-office-services-ext",
     "test": "ng test app --code-coverage",
     "lite-serve": "./scripts/run lite-serve",
     "test:ci": "ng test adf-office-services-ext --watch=false && ng test app --code-coverage --watch=false",

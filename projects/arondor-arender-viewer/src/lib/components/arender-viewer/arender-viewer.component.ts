@@ -23,13 +23,11 @@
  * along with Alfresco. If not, see <http://www.gnu.org/licenses/>.
  */
 
-import { Component, ViewEncapsulation, OnInit } from '@angular/core';
-import { SafeResourceUrl } from '@angular/platform-browser';
-import { MinimalNodeEntryEntity } from '@alfresco/js-api';
-import { AppConfigService, AuthenticationService, EcmUserService, AlfrescoApiService, LogService } from '@alfresco/adf-core';
-
-import { ArenderService } from '../../services/arender.service';
-import { ViewerExtensionInterface } from '@alfresco/adf-extensions';
+import { Component, ViewEncapsulation, OnInit, Input, EventEmitter, Output } from '@angular/core';
+import { DomSanitizer } from '@angular/platform-browser';
+import { AppConfigService, AuthenticationService, EcmUserService, AlfrescoApiService, LogService, NodesApiService } from '@alfresco/adf-core';
+import { MinimalNodeEntryEntity } from '@alfresco/js-api/src/api-legacy/legacy';
+import { WebscriptApi } from '@alfresco/js-api';
 
 @Component({
   selector: 'arender-viewer',
@@ -38,89 +36,170 @@ import { ViewerExtensionInterface } from '@alfresco/adf-extensions';
   host: { class: 'arender-viewer' },
   encapsulation: ViewEncapsulation.None
 })
-export class ArenderViewerComponent implements ViewerExtensionInterface, OnInit {
-  node: MinimalNodeEntryEntity;
-  url: string;
-  nameFile: string;
+export class ArenderViewerComponent implements OnInit {
+  /** Node Id of the file to load. */
+  @Input()
+  nodeId: string = null;
 
-  arenderUrl: SafeResourceUrl;
-  ecmHost: SafeResourceUrl;
-  alfTicket: string;
-  uuid: string;
-  versionLabel: string;
-  userName: string;
+  /** If `true` then show the Viewer as a full page over the current content.
+   * Otherwise fit inside the parent div.
+   */
+  @Input()
+  overlayMode = false;
+
+  /** Hide or show the viewer */
+  @Input()
+  showViewer = true;
+
+  /** Hide or show the toolbar */
+  @Input()
+  showToolbar = true;
+
+  /** Toggles before/next navigation. You can use the arrow buttons to navigate
+   * between documents in the collection.
+   */
+  @Input()
+  allowNavigate = false;
+
+  /** Toggles the "before" ("<") button. Requires `allowNavigate` to be enabled. */
+  @Input()
+  canNavigateBefore = true;
+
+  /** Toggles the next (">") button. Requires `allowNavigate` to be enabled. */
+  @Input()
+  canNavigateNext = true;
+
+  /** Allow the left the sidebar. */
+  @Input()
+  allowLeftSidebar = false;
+
+  /** Allow the right sidebar. */
+  @Input()
+  allowRightSidebar = false;
+
+  /** Toggles right sidebar visibility. Requires `allowRightSidebar` to be set to `true`. */
+  @Input()
+  showRightSidebar = false;
+
+  /** Toggles left sidebar visibility. Requires `allowLeftSidebar` to be set to `true`. */
+  @Input()
+  showLeftSidebar = false;
+
+  @Input()
+  documentBuilderEnabled = false;
+
+  /** Emitted when the viewer is shown or hidden. */
+  @Output()
+  showViewerChange = new EventEmitter<boolean>();
+
+  /** Emitted when user clicks 'Navigate Before' ("<") button. */
+  @Output()
+  navigateBefore = new EventEmitter<MouseEvent | KeyboardEvent>();
+
+  /** Emitted when user clicks 'Navigate Next' (">") button. */
+  @Output()
+  navigateNext = new EventEmitter<MouseEvent | KeyboardEvent>();
+
+  /** Node of the file to load. */
+  node: MinimalNodeEntryEntity;
+
+  /** ARender URL. */
+  arenderURL: string = null;
+
+  /** Name webscript data of node. */
+  name = '/';
+
+  /** Webscript API. */
+  webScript: WebscriptApi;
 
   constructor(
     private apiService: AlfrescoApiService,
-    private ecmUserService: EcmUserService,
-    private authService: AuthenticationService,
-    private appConfig: AppConfigService,
     private logService: LogService,
-    private arenderService: ArenderService
-  ) {}
-
-  isSourceDefined(): boolean {
-    return this.node.id ? true : false;
+    private appConfig: AppConfigService,
+    private authenticationService: AuthenticationService,
+    private ecmUserService: EcmUserService,
+    private nodeApiService: NodesApiService,
+    private sanitizer: DomSanitizer
+  ) {
+    this.webScript = new WebscriptApi(apiService.getInstance());
   }
 
   ngOnInit() {
-    const onPromise = this.appConfig.get<boolean>('arender.onPromise');
-    const documentbuilder = this.appConfig.get<boolean>('arender.documentbuilder');
+    let alfTicket: string;
+    let arenderHost: string;
     let userName: string;
-    if (!onPromise) {
-      let uuid: string;
-      this.apiService
-        .getInstance()
-        .webScript.executeWebScript(
-          'GET',
-          'slingshot/doclib/action/arenderUpload',
-          { nodeRef: 'workspace://SpacesStore/' + this.node.id },
-          'alfresco',
-          's'
-        )
-        .then(
-          (webScriptdata) => {
-            uuid = webScriptdata['UUID'];
-            this.ecmUserService.getCurrentUserInfo().subscribe((u) => {
-              userName = u.id;
-              this.arenderUrl = this.arenderService.buildArenderURL(uuid, userName, null, null, false, documentbuilder, false);
-            });
-          },
-          (error) => {
-            this.logService.log('Error' + error);
-          }
-        );
-    } else {
-      let alfTicket: string;
-      let versionLabel: string;
+    let versionLabel: string;
 
-      this.apiService
-        .getInstance()
-        .webScript.executeWebScript('GET', 'api/version', { nodeRef: 'workspace://SpacesStore/' + this.node.id }, 'alfresco', 's')
-        .then(
+    arenderHost = this.appConfig.get<string>('arender.host');
+
+    this.ecmUserService.getCurrentUserInfo().subscribe((u) => {
+      userName = u.id;
+    });
+
+    // Check authentication service.
+    if (this.authenticationService.isOauth()) {
+      alfTicket = this.apiService.getInstance().config.ticketEcm;
+    } else {
+      alfTicket = this.authenticationService.getTicketEcm();
+    }
+
+    // If nodeId input is null, retrieve it with legacy MinimalNodeEntryEntity.
+    if (this.nodeId == null) {
+      this.nodeId = this.node.id;
+    }
+
+    // Retrieve node information to build the ARender URL.
+    this.nodeApiService.getNode(this.nodeId).subscribe((node) => {
+      if (node) {
+        this.webScript.executeWebScript('GET', 'api/version', { nodeRef: 'workspace://SpacesStore/' + this.nodeId }, 'alfresco', 's').then(
           (webScriptdata) => {
             versionLabel = webScriptdata[0]['label'];
-
-            this.ecmUserService.getCurrentUserInfo().subscribe((u) => {
-              userName = u.id;
-              alfTicket = this.authService.getTicketEcm();
-              this.arenderService
-                .clearNodeCache(this.node.id, userName, versionLabel)
-                // tslint:disable-next-line: prettier
-                .subscribe(
-                  () => {},
-                  () => {}
-                );
-              this.arenderUrl = this.arenderService.buildArenderURL(this.node.id, userName, alfTicket, versionLabel, true, documentbuilder, false);
-            });
+            this.name = '/' + webScriptdata[0]['name'];
+            this.arenderURL = arenderHost + this.buildArenderURLParameters(userName, alfTicket, versionLabel, node.isFolder);
           },
           (error) => {
-            this.logService.log('Error' + error);
+            this.logService.error('Error' + error);
           }
         );
-      if (!this.isSourceDefined()) {
-        throw new Error('A content source attribute value is missing.');
       }
+    });
+  }
+
+  /**
+   * Build the ARender URL
+   * @param userName
+   * @param alfTicket
+   * @param versionLabel
+   * @param isFolder
+   */
+  buildArenderURLParameters(userName: string, alfTicket: string, versionLabel: string, isFolder: boolean): string {
+    let arenderParams: string;
+
+    arenderParams = '?nodeRef=workspace://SpacesStore/' + this.nodeId;
+    if (alfTicket != null) {
+      arenderParams = arenderParams + '&alf_ticket=' + alfTicket;
     }
+    if (versionLabel != null) {
+      arenderParams = arenderParams + '&versionLabel=' + versionLabel;
+    }
+    if (isFolder) {
+      arenderParams = arenderParams + '&folder=true';
+    }
+    arenderParams = arenderParams + '&user=' + userName;
+    if (this.documentBuilderEnabled) {
+      arenderParams = arenderParams + '&documentbuilder.enabled=true';
+    }
+    return arenderParams;
+  }
+
+  /**
+   * Method used to sanitize and to not expose straight url in the view.
+   */
+  buildSafeURL() {
+    return this.sanitizer.bypassSecurityTrustResourceUrl(this.arenderURL);
+  }
+
+  onVisibilityChanged(event: boolean) {
+    this.showViewerChange.next(event);
   }
 }
